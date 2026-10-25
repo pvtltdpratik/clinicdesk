@@ -26,6 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // Browser extensions (e.g. LanguageTool, Grammarly) add attributes to
+      // <html> before React loads; this ignores those on this element only.
+      suppressHydrationWarning
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-serif", notoSerif.variable, loraHeading.variable)}
     >
       <body className="min-h-full flex flex-col">{children}</body>
