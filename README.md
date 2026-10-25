@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Simple Doctor & Receptionist
 
-## Getting Started
+A small clinic app built with Next.js 16 and SQLite (Node's built-in `node:sqlite`, no ORM).
+Doctors and receptionists share one login page; what each person sees and can do depends on their role.
 
-First, run the development server:
+## Getting started
+
+Requires **Node.js 22.13+** (for `node:sqlite`).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run setup      # creates data/clinic.db, the two starter accounts, and imports medicines
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run setup` runs two steps you can also run on their own:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command | What it does |
+| --- | --- |
+| `npm run db:seed` | Creates the starter accounts `doctor` and `reception`. Their development passwords are in `scripts/seed.mjs` (or set `SEED_DOCTOR_PASSWORD` / `SEED_RECEPTIONIST_PASSWORD`). |
+| `npm run db:import-medicines` | Loads `data/medicines.csv` (the A–Z medicines dataset of India) into the `medicines` table for prescription autocomplete. Pass a different path with `npm run db:import-medicines -- path/to/file.csv`. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create more staff, or reset a password:
 
-## Learn More
+```bash
+npm run user:create -- doctor drmehta "Dr. Anil Mehta" "a-strong-password"
+```
 
-To learn more about Next.js, take a look at the following resources:
+Change the starter passwords before using the app with real patients.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How access control works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Roles** live in the `users` table (`doctor` or `receptionist`). The login form has no role field; the role always comes from the database.
+- **Permissions** are listed in `lib/permissions.ts`. Receptionists get patients, appointments, queue and invoices. Doctors get all of that plus `clinical:read` and `clinical:write`.
+- To explicitly let a receptionist do something extra, add it to their `extra_permissions` column, e.g. `clinical:read`.
+- **Enforced on the server**: every page, Server Action and API route starts with `requirePermission(...)` from `lib/auth.ts`. Hiding buttons is only for convenience.
+- **Sessions**: a random token in an httpOnly cookie; the database stores only its SHA-256 hash (`sessions` table). Logging out deletes the row. Passwords are hashed with bcrypt.
+- `proxy.ts` redirects anyone without a session cookie to `/login` before a page renders.
 
-## Deploy on Vercel
+## Where things are
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Path | Purpose |
+| --- | --- |
+| `lib/schema.mjs` | All tables, in plain SQL |
+| `lib/db.ts` | Database connection + `all` / `get` / `run` / `transaction` helpers |
+| `lib/auth.ts`, `lib/session.ts` | Current user, permission checks, login sessions |
+| `app/actions/*` | Server Actions (all writes) |
+| `app/(app)/*` | Logged-in pages; `layout.tsx` builds the role-specific sidebar |
+| `app/api/medicines` | Medicine autocomplete (doctors only) |
+| `app/print/*` | Printable invoices and prescriptions |

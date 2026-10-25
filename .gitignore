@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local SQLite database and the (large) medicines CSV
+/data/*.db
+/data/*.db-*
+/data/*.csv
